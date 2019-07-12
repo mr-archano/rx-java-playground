@@ -1,7 +1,9 @@
 # Gradle
 /.gradle/
+/build/
 
 # IntelliJ
 /.idea/gradle.xml
 /.idea/misc.xml
 /.idea/workspace.xml
+/out/
