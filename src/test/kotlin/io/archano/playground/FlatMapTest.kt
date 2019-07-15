@@ -146,6 +146,34 @@ class FlatMapTest {
         val consumer = PublishSubject.create<Int>()
         val data = Observable.just(1)
                 .doOnNext(printOnNext)
+                .publish()
+
+        data.subscribe(consumer)
+
+        consumer
+                .doOnSubscribe(printOnSubscribed)
+                .subscribeOn(background)
+                .observeOn(main)
+                .subscribe {
+                    println("onNext($it) on: $threadName")
+                }
+
+        data.connect()
+
+        Thread.sleep(1000L)
+
+        assertThat(output).isEqualTo("""
+            subscribed on: RxCachedThreadScheduler-1
+            emitted 1 on: Test worker
+            onNext(1) on: RxSingleScheduler-1
+            """.trimIndent())
+    }
+
+    @Test
+    fun `variation subject 2`() {
+        val consumer = PublishSubject.create<Int>()
+        val data = Observable.just(1)
+                .doOnNext(printOnNext)
                 .flatMap { n ->
                     println("flatMap $n on: $threadName")
                     Observable.just(n)
@@ -178,7 +206,7 @@ class FlatMapTest {
     }
 
     @Test
-    fun `variation subject 2`() {
+    fun `variation subject 3`() {
         val consumerCreator = FutureTask<Subject<Int>>(Callable {
             println("create consumer on: $threadName")
             PublishSubject.create<Int>()
