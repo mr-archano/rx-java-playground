@@ -5,7 +5,11 @@ import io.reactivex.Observable
 import io.reactivex.disposables.Disposable
 import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.PublishSubject
+import io.reactivex.subjects.Subject
 import org.junit.Test
+import java.util.concurrent.Callable
+import java.util.concurrent.Executors
+import java.util.concurrent.FutureTask
 
 class FlatMapTest {
 
@@ -170,6 +174,43 @@ class FlatMapTest {
             flatMap 1 on: Test worker
             emitted 2 on: Test worker
             onNext(2) on: RxSingleScheduler-1
+            """.trimIndent())
+    }
+
+    @Test
+    fun `variation subject 2`() {
+        val consumerCreator = FutureTask<Subject<Int>>(Callable {
+            println("create consumer on: $threadName")
+            PublishSubject.create<Int>()
+        })
+        val executor = Executors.newFixedThreadPool(2)
+        executor.submit(consumerCreator)
+        val consumer = consumerCreator.get()
+        val data = Observable.just(1)
+                .flatMap { n ->
+                    Observable.just(n)
+                            .map { it * 2 }
+                }
+                .publish()
+
+        data.subscribe(consumer)
+
+        consumer
+                .doOnNext(printOnNext)
+                .doOnSubscribe(printOnSubscribed)
+                .subscribe {
+                    println("onNext($it) on: $threadName")
+                }
+
+        data.connect()
+
+        Thread.sleep(1000L)
+
+        assertThat(output).isEqualTo("""
+            create consumer on: pool-1-thread-1
+            subscribed on: Test worker
+            emitted 2 on: Test worker
+            onNext(2) on: Test worker
             """.trimIndent())
     }
 
